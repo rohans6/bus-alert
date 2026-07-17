@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#12141c" />
+<title>A2 Bus Alert</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#12141c;
+    --panel:#1a1d29;
+    --line:#2a2f3f;
+    --amber:#ffb400;
+    --amber-dim:#8a6a1f;
+    --text:#eef0f5;
+    --muted:#7b8299;
+    --delay:#ff5d5d;
+    --early:#35d07f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  body{padding:max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    min-height:100vh;}
+
+  .board{max-width:460px;margin:0 auto;}
+
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 4px;}
+  h1{font-size:22px;margin:0 0 22px;font-weight:700;letter-spacing:-.01em;}
+  h1 span{color:var(--amber);}
+
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+  .toggle-btn{
+    appearance:none;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);border-radius:14px;padding:20px 14px;text-align:left;
+    font-family:'Space Grotesk',sans-serif;cursor:pointer;transition:.15s ease;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .toggle-btn:active{transform:scale(.98);}
+  .toggle-btn .label{font-size:17px;font-weight:700;}
+  .toggle-btn .sub{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .toggle-btn.active{
+    background:linear-gradient(160deg,#2a2410,#1a1d29 65%);
+    border-color:var(--amber);
+    box-shadow:0 0 0 1px var(--amber) inset, 0 8px 24px -12px rgba(255,180,0,.35);
+  }
+  .toggle-btn.active .label{color:var(--amber);}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block;margin-right:6px;}
+  .toggle-btn.active .dot{background:var(--early);box-shadow:0 0 8px var(--early);}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:18px;margin-bottom:14px;}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    margin:0 0 12px;font-weight:600;}
+
+  .empty{color:var(--muted);font-size:14px;font-family:'IBM Plex Mono',monospace;
+    padding:6px 0;}
+
+  .row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;}
+  .row:last-child{margin-bottom:0;}
+  .row .k{font-size:13px;color:var(--muted);}
+  .row .v{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;}
+  .v.flicker{animation:flicker .4s ease;}
+  @keyframes flicker{
+    0%{opacity:0;transform:translateY(-3px);}
+    100%{opacity:1;transform:translateY(0);}
+  }
+  .diff-tag{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:2px 8px;
+    border-radius:20px;font-weight:600;}
+  .diff-tag.delay{color:var(--delay);background:rgba(255,93,93,.12);}
+  .diff-tag.early{color:var(--early);background:rgba(53,208,127,.12);}
+  .diff-tag.ontime{color:var(--muted);background:rgba(123,130,153,.12);}
+
+  .timer{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+
+  .history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .history li{border-left:2px solid var(--amber);padding:2px 0 2px 12px;}
+  .history .h-time{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+  .history .h-msg{font-size:14px;margin-top:2px;}
+
+  .sound-row{display:flex;align-items:center;justify-content:space-between;}
+  .sound-toggle{appearance:none;border:1px solid var(--line);background:var(--bg);
+    color:var(--text);border-radius:10px;padding:8px 12px;font-family:'IBM Plex Mono',monospace;
+    font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .sound-toggle[aria-pressed="true"]{border-color:var(--amber);color:var(--amber);}
+
+  .foot{text-align:center;color:var(--muted);font-size:11px;font-family:'IBM Plex Mono',monospace;
+    margin-top:8px;}
+
+  .error{color:var(--delay);font-family:'IBM Plex Mono',monospace;font-size:12px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="board">
+  <p class="eyebrow">Athlone &middot; Route A2</p>
+  <h1>Bus <span>Alert</span></h1>
+
+  <div class="toggles">
+    <button class="toggle-btn" id="btn-work" data-mode="work">
+      <span class="label"><span class="dot"></span>Work</span>
+      <span class="sub">leaving work &rarr; watch the stop home</span>
+    </button>
+    <button class="toggle-btn" id="btn-home" data-mode="home">
+      <span class="label"><span class="dot"></span>Home</span>
+      <span class="sub">leaving home &rarr; watch the stop to work</span>
+    </button>
+  </div>
+
+  <div class="card" id="status-card" hidden>
+    <h2>Next A2</h2>
+    <div id="status-body">
+      <p class="empty">Waiting for first check-in&hellip;</p>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <span class="timer" id="timer">watching for 30:00</span>
+      <span class="timer" id="poll-age"></span>
+    </div>
+    <p class="error" id="error-line" hidden></p>
+  </div>
+
+  <div class="card" id="history-card" hidden>
+    <h2>Updates this session</h2>
+    <ul class="history" id="history-list"></ul>
+  </div>
+
+  <div class="card">
+    <div class="sound-row">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Read updates aloud</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">while the app is open</div>
+      </div>
+      <button class="sound-toggle" id="sound-toggle" aria-pressed="false">
+        <span id="sound-icon">&#128264;</span> <span id="sound-label">Off</span>
+      </button>
+    </div>
+  </div>
+
+  <p class="foot" id="notif-foot">Notifications: checking&hellip;</p>
+</div>
+
+<script>
+// ---- EDIT THIS to your deployed backend URL ----
+const API_BASE = "https://YOUR-BACKEND-URL.example.com";
+// -------------------------------------------------
+
+const btnWork = document.getElementById('btn-work');
+const btnHome = document.getElementById('btn-home');
+const statusCard = document.getElementById('status-card');
+const statusBody = document.getElementById('status-body');
+const historyCard = document.getElementById('history-card');
+const historyList = document.getElementById('history-list');
+const timerEl = document.getElementById('timer');
+const pollAgeEl = document.getElementById('poll-age');
+const errorLine = document.getElementById('error-line');
+const soundToggle = document.getElementById('sound-toggle');
+const soundLabel = document.getElementById('sound-label');
+const notifFoot = document.getElementById('notif-foot');
+
+let soundOn = localStorage.getItem('busalert-sound') === 'on';
+let pollTimer = null;
+let lastHistoryLen = 0;
+let lastRenderedExpected = null;
+
+function fmtTime(ms){
+  if(!ms) return '--:--';
+  return new Date(ms).toLocaleTimeString('en-IE', {hour:'2-digit', minute:'2-digit'});
+}
+function fmtClock(sec){
+  const m = Math.floor(sec/60).toString().padStart(2,'0');
+  const s = Math.floor(sec%60).toString().padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+function updateSoundUI(){
+  soundToggle.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+  soundLabel.textContent = soundOn ? 'On' : 'Off';
+}
+updateSoundUI();
+
+soundToggle.addEventListener('click', () => {
+  soundOn = !soundOn;
+  localStorage.setItem('busalert-sound', soundOn ? 'on' : 'off');
+  updateSoundUI();
+  if (soundOn) speak('Sound alerts on.');
+});
+
+function speak(text){
+  if (!soundOn || !('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+function setActiveButton(mode){
+  btnWork.classList.toggle('active', mode === 'work');
+  btnHome.classList.toggle('active', mode === 'home');
+}
+
+async function api(path, opts){
+  const res = await fetch(API_BASE + path, {
+    headers: {'Content-Type':'application/json'},
+    ...opts,
+  });
+  return res.json();
+}
+
+async function startMode(mode){
+  setActiveButton(mode);
+  statusCard.hidden = false;
+  historyCard.hidden = true;
+  lastHistoryLen = 0;
+  lastRenderedExpected = null;
+  await api('/api/session/start', {method:'POST', body: JSON.stringify({mode})});
+  poll();
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(poll, 4000);
+}
+
+async function stopMode(){
+  setActiveButton(null);
+  statusCard.hidden = true;
+  historyCard.hidden = true;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  await api('/api/session/stop', {method:'POST'});
+}
+
+async function poll(){
+  let data;
+  try {
+    data = await api('/api/session/status');
+  } catch (e) {
+    errorLine.hidden = false;
+    errorLine.textContent = "Can't reach the server. Check your connection.";
+    return;
+  }
+
+  if (!data.active){
+    stopModeUIOnly();
+    return;
+  }
+
+  timerEl.textContent = `watching for ${fmtClock(data.secondsRemaining)}`;
+
+  if (data.lastError){
+    errorLine.hidden = false;
+    errorLine.textContent = data.lastError;
+  } else {
+    errorLine.hidden = true;
+  }
+
+  if (data.lastPoll){
+    const p = data.lastPoll;
+    pollAgeEl.textContent = `checked ${fmtTime(p.polledAt)}`;
+    const changed = p.expected !== lastRenderedExpected;
+    lastRenderedExpected = p.expected;
+    const diffClass = p.diffMinutes > 0 ? 'delay' : (p.diffMinutes < 0 ? 'early' : 'ontime');
+    const diffText = p.diffMinutes === 0 ? 'on time' :
+      (p.diffMinutes > 0 ? `+${p.diffMinutes} min` : `${p.diffMinutes} min`);
+    statusBody.innerHTML = `
+      <div class="row"><span class="k">Scheduled</span><span class="v">${fmtTime(p.scheduled)}</span></div>
+      <div class="row"><span class="k">Expected now</span><span class="v ${changed?'flicker':''}">${fmtTime(p.expected)}</span></div>
+      <div class="row"><span class="k">Status</span><span class="diff-tag ${diffClass}">${diffText}</span></div>
+    `;
+  } else {
+    statusBody.innerHTML = `<p class="empty">No A2 arrivals found in range yet&hellip;</p>`;
+  }
+
+  if (data.history && data.history.length){
+    historyCard.hidden = false;
+    if (data.history.length !== lastHistoryLen){
+      historyList.innerHTML = data.history.slice().reverse().map(ev => {
+        const dir = ev.diffMinutes > 0 ? 'delayed' : 'earlier';
+        const mag = Math.abs(ev.diffMinutes);
+        return `<li>
+          <div class="h-time">${fmtTime(ev.time)}</div>
+          <div class="h-msg">Now ${dir} by ${mag} min &mdash; was ${fmtTime(ev.previous)}, now ${fmtTime(ev.updated)}</div>
+        </li>`;
+      }).join('');
+
+      if (data.history.length > lastHistoryLen){
+        const newest = data.history[data.history.length - 1];
+        const dir = newest.diffMinutes > 0 ? 'delayed' : 'earlier';
+        speak(`A2 bus ${dir} by ${Math.abs(newest.diffMinutes)} minutes. New time ${fmtTime(newest.updated)}.`);
+      }
+      lastHistoryLen = data.history.length;
+    }
+  }
+}
+
+function stopModeUIOnly(){
+  setActiveButton(null);
+  statusCard.hidden = true;
+  historyCard.hidden = true;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+[btnWork, btnHome].forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const mode = btn.dataset.mode;
+    const isActive = btn.classList.contains('active');
+    if (isActive){
+      await stopMode();
+    } else {
+      await startMode(mode);
+    }
+  });
+});
+
+// --- Push notification setup ---------------------------------------------
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function setupPush(){
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)){
+    notifFoot.textContent = 'This browser doesn\'t support push notifications.';
+    return;
+  }
+  const reg = await navigator.serviceWorker.register('sw.js');
+  const { key } = await api('/api/vapid-public-key');
+  if (!key){
+    notifFoot.textContent = 'Push not configured on the server yet.';
+    return;
+  }
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub){
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted'){
+      notifFoot.textContent = 'Notifications are off — enable them in iPhone Settings to get alerts when the app is closed.';
+      return;
+    }
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(key),
+    });
+  }
+  await api('/api/subscribe', {method:'POST', body: JSON.stringify({subscription: sub})});
+  notifFoot.textContent = 'Notifications are on. Safe to lock your phone.';
+}
+
+// Sync UI with any session already running (e.g. reopening the app)
+async function syncOnLoad(){
+  try {
+    const data = await api('/api/session/status');
+    if (data.active){
+      setActiveButton(data.mode);
+      statusCard.hidden = false;
+      lastHistoryLen = 0;
+      poll();
+      pollTimer = setInterval(poll, 4000);
+    }
+  } catch(e){ /* backend not reachable yet, ignore on load */ }
+}
+
+setupPush();
+syncOnLoad();
+</script>
+</body>
+</html>
