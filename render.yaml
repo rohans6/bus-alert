@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: bus-alert-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT server:app
+    envVars:
+      - key: TFI_GTFS_URL
+        value: http://localhost:7341
+      - key: ROUTE_ID
+        value: A2
+      - key: WORK_STOP_ID
+        value: "1234"
+      - key: HOME_STOP_ID
+        value: "5678"
+      - key: POLL_INTERVAL_SEC
+        value: "10"
+      - key: CONFIRM_AFTER_POLLS
+        value: "3"
+      - key: SESSION_MAX_SEC
+        value: "1800"
+      - key: VAPID_SUBJECT
+        value: mailto:you@example.com
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
